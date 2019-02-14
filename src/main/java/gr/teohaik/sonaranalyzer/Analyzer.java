@@ -37,15 +37,10 @@ public class Analyzer {
 
     public static void main(String... args) throws IOException {
 
-        
-        
         List<String> projects = getAnalyzedProjectNames(); // Arrays.asList("curl");//
 
         Map<String, Integer> issueFrequencies = new HashMap<>();
-
         Map<String, Set<String>> filesPerIssue = new HashMap<>();
-
-        Map<String, Integer> issueDebts = new HashMap<>();
 
         for (String project : projects) {
             System.out.println("Analyzing project " + project);
