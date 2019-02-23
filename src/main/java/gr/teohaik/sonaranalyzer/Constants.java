@@ -1,6 +1,9 @@
 
 package gr.teohaik.sonaranalyzer;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  *
  */
@@ -12,6 +15,15 @@ public class Constants {
     
     public static final String SONAR_HOST_WITH_PORT = SONAR_HOST + ":"+ PORT;
     
+    
+    public static List<String> getAnalyzedCppProjectNames(){
+        return Arrays.asList("radSense" 
+//                ,"directxmesh",
+//                "faiss","IMD","muduo","oboe",
+//                "paho","sentencepiece","starSpace",
+//                "sumo","xacc"
+        );
+    } 
     
     public static final String[] ruleKeys = {
         "c:UndocumentedApi",	

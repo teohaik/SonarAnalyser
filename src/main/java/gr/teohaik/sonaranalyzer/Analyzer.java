@@ -20,6 +20,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import static gr.teohaik.sonaranalyzer.Constants.SONAR_HOST_WITH_PORT;
+import static gr.teohaik.sonaranalyzer.Constants.getAnalyzedCppProjectNames;
 
 /**
  *
@@ -30,20 +31,24 @@ public class Analyzer {
 
     static ObjectMapper objectMapper = new ObjectMapper();
 
-  //  static String SEVERITY = "MINOR";
-  //  static String SEVERITY = "MAJOR";
-  //  static String SEVERITY = "CRITICAL";
-    static String SEVERITY = "BLOCKER";
+    static String[] severities = {"MINOR", "MAJOR", "CRITICAL", "BLOCKER"};
 
     public static void main(String... args) throws IOException {
+         
+        System.out.println("Rule_Key\tRuleName\tOccurences\tFilesFound\tSeverity");
+        //List<String> projects = getAnalyzedProjectNames(); 
+        List<String> projects = getAnalyzedCppProjectNames();
+        
+        for (String severity : severities) {
+            extractIssuesOfSeverity(projects, severity);
+        }
+    }
 
-        List<String> projects = getAnalyzedProjectNames(); // Arrays.asList("curl");//
-
+    private static void extractIssuesOfSeverity(List<String> projects, String SEVERITY) throws IOException {
         Map<String, Integer> issueFrequencies = new HashMap<>();
         Map<String, Set<String>> filesPerIssue = new HashMap<>();
 
         for (String project : projects) {
-            System.out.println("Analyzing project " + project);
             try {
                 handleProject(project, issueFrequencies, filesPerIssue, SEVERITY);
             } catch (Exception e) {
@@ -51,10 +56,13 @@ public class Analyzer {
                 System.out.println(e.getMessage());
             }
         }
-        printRuleFrequencies(issueFrequencies, filesPerIssue);
+        printRuleFrequencies(issueFrequencies, filesPerIssue, SEVERITY);
     }
 
-    private static void handleProject(String project, Map<String, Integer> issueFrequencies, Map<String, Set<String>> filesPerIssue, String severity) throws IOException {
+    private static void handleProject(String project, 
+            Map<String, Integer> issueFrequencies, 
+            Map<String, Set<String>> filesPerIssue, 
+            String severity) throws IOException {
 
         int currentPage = 1;
         int pageSize = 100;
@@ -66,10 +74,10 @@ public class Analyzer {
         int total = root.get("total").asInt();
         int page = root.get("p").asInt();
 
-        int limit = total / pageSize;
+        Double limit = Math.ceil(0.5+(total / pageSize));
 
-        while (currentPage < limit) {
-            System.out.println("page " + currentPage + " of " + limit);
+        while (currentPage <= limit) {
+         //   System.out.println("page " + currentPage + " of " + limit);
             Iterator<JsonNode> issuesNodes = root.path("issues").elements();
             while (issuesNodes.hasNext()) {
                 JsonNode issue = issuesNodes.next();
@@ -82,7 +90,7 @@ public class Analyzer {
             }
 
             currentPage++;
-            targetUnderTest = client.target(getIssuesUrl(project, SEVERITY, currentPage, pageSize));
+            targetUnderTest = client.target(getIssuesUrl(project, severity, currentPage, pageSize));
             jsonResponse = targetUnderTest.request().get(String.class);
             root = objectMapper.readTree(jsonResponse);
         }
@@ -108,7 +116,7 @@ public class Analyzer {
         }
     }
 
-    private static List<String> getAnalyzedProjectNames() throws IOException {
+    private static List<String> getAnalyzedProjectNames(String tag) throws IOException {
         List<String> projects = new ArrayList<>();
 
         Client client = ClientBuilder.newClient().register(new Authenticator("admin", "admin"));
@@ -132,7 +140,7 @@ public class Analyzer {
 
     private static String getIssuesUrl(String project, String severity, int page, int pageSize) {
 
-        return SONAR_HOST_WITH_PORT+"/api/issues/search"
+        return SONAR_HOST_WITH_PORT + "/api/issues/search"
                 + "?severities=" + severity
                 + "&s=SEVERITY"
                 + "&asc=false"
@@ -144,13 +152,13 @@ public class Analyzer {
     }
 
     private static String getProjectsUrl() {
-        return SONAR_HOST_WITH_PORT+"/api/projects/search";
+        return SONAR_HOST_WITH_PORT + "/api/projects/search";
     }
 
-    private static void printRuleFrequencies(Map<String, Integer> issueFrequencies, Map<String, Set<String>> filesPerIssue) throws IOException {
+    private static void printRuleFrequencies(Map<String, Integer> issueFrequencies,
+            Map<String, Set<String>> filesPerIssue,
+            String severity) throws IOException {
 
-        System.out.println("Report for SONAR DB issues with severity " + SEVERITY);
-        System.out.println("Rule_Key\tRuleName\tOccurences\tFilesFound");
         issueFrequencies.keySet().forEach(ruleKey -> {
             String ruleName = "";
             try {
@@ -158,7 +166,7 @@ public class Analyzer {
             } catch (IOException ex) {
                 Logger.getLogger(Analyzer.class.getName()).log(Level.SEVERE, null, ex);
             }
-            System.out.println(ruleKey + "\t" + ruleName + "\t" + issueFrequencies.get(ruleKey) + "\t" + filesPerIssue.get(ruleKey).size());
+            System.out.println(ruleKey + "\t" + ruleName + "\t" + issueFrequencies.get(ruleKey) + "\t" + filesPerIssue.get(ruleKey).size() + "\t" + severity);
         });
 
     }
